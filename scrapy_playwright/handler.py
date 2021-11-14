@@ -111,7 +111,21 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         self.contexts: Dict[str, BrowserContext] = dict(zip(self.context_kwargs.keys(), contexts))
 
     async def _create_browser_context(self, name: str, context_kwargs: dict) -> BrowserContext:
+        # pop add_init_script
+        _add_init_script = context_kwargs.pop("add_init_script", None)
+
         context = await self.browser.new_context(**context_kwargs)
+
+        # context add_init_script
+        if _add_init_script is not None:
+            if isinstance(_add_init_script, dict):
+                await context.add_init_script(**_add_init_script)
+            elif isinstance(_add_init_script, list):
+                if len(_add_init_script) > 0:
+                    for _init_script in _add_init_script:
+                        if isinstance(_init_script, dict):
+                            await context.add_init_script(**_init_script)
+        
         context.on("close", self._make_close_browser_context_callback(name))
         logger.debug("Browser context started: '%s'", name)
         self.stats.inc_value("playwright/context_count")
