@@ -171,10 +171,7 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
         page = request.meta.get("playwright_page")
 
         if not isinstance(page, Page):
-            if hasattr(spider,"url_page_dict") and isinstance(spider.url_page_dict, dict):
-                page = spider.url_page_dict.pop(request.url, None)
-            if not isinstance(page, Page):
-                page = await self._create_page(request)
+            page = await self._create_page(request)
 
         # attach event handlers
         event_handlers = request.meta.get("playwright_page_event_handlers") or {}
@@ -206,6 +203,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             result = await self._download_request_with_page(request, page)
         except Exception:
             if not page.is_closed():
+                context = page.context
+                await context.close()
                 await page.close()
                 self.stats.inc_value("playwright/page_count/closed")
             raise
