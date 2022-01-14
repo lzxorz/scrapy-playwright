@@ -2,7 +2,7 @@ import asyncio
 import logging
 import warnings
 from collections import defaultdict
-from time import time
+from time import time,sleep
 from typing import Callable, Dict, Optional, Type, TypeVar
 from urllib.parse import urlparse
 
@@ -98,10 +98,28 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
     async def _launch_browser(self) -> None:
         self.playwright_context_manager = PlaywrightContextManager()
         self.playwright = await self.playwright_context_manager.start()
-        logger.info("Launching browser")
-        browser_launcher = getattr(self.playwright, self.browser_type).launch
-        self.browser = await browser_launcher(**self.launch_options)
+
+        if "args" in self.launch_options:
+            args_list = self.launch_options.get("args", [])
+            user_data_dir = None
+            for _args in args_list:
+                if _args.startswith("--user-data-dir"):
+                    user_data_dir = _args.split("=")[1]
+                    break
+            if user_data_dir:
+                logger.info("func launch_persistent_context, Launching browser by options: %s" % self.launch_options)
+                args_list.remove("--user-data-dir=%s" % user_data_dir)
+                self.launch_options['args'] = args_list
+                browser_persistent_context_launcher = getattr(self.playwright, self.browser_type).launch_persistent_context
+                self.browser = await browser_persistent_context_launcher(user_data_dir=user_data_dir, **self.launch_options)
+
+        if not hasattr(self, "browser") or  self.browser is None:
+            logger.info("func launch, Launching browser by options: %s" % self.launch_options)
+            browser_launcher = getattr(self.playwright, self.browser_type).launch
+            self.browser = await browser_launcher(**self.launch_options)
+
         logger.info(f"Browser {self.browser_type} launched")
+        # sleep(0.01)
         contexts = await asyncio.gather(
             *[
                 self._create_browser_context(name, kwargs)
