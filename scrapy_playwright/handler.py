@@ -223,9 +223,8 @@ class ScrapyPlaywrightDownloadHandler(HTTPDownloadHandler):
             if not page.is_closed():
                 context = page.context
                 await page.close()
-                # if context and 0 == len(context.pages):
-                if context:
-                    await context.close()
+                # if context:
+                #     await context.close()
                 self.stats.inc_value("playwright/page_count/closed")
             raise
         else:
